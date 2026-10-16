@@ -1,0 +1,7 @@
+bin/
+settings.json
+node_modules/
+dist/
+history.json
+archive.txt
+.playwright-mcp/

@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>YT Downloader</title>
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <img src="icon.svg" alt="" width="32" height="32">
+      <span>YT Downloader</span>
+    </div>
+    <div class="top-right">
+      <span id="statusPill" class="pill">Starting…</span>
+      <button type="button" id="settingsBtn" class="icon-btn" title="Settings" aria-label="Settings">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <div id="banners"></div>
+
+    <section class="card" id="linkCard">
+      <h1>Download videos and music</h1>
+      <p class="muted">Paste a link from YouTube, TikTok, Instagram, X, Facebook, SoundCloud, Vimeo and 1,800+ other sites.
+        You can also paste several links at once, or type what you're looking for.</p>
+      <form id="linkForm" class="link-row" autocomplete="off">
+        <textarea id="urlInput" rows="1" placeholder="Paste a link, or search YouTube…" aria-label="Video link or search" spellcheck="false"></textarea>
+        <button type="button" id="pasteBtn" class="btn ghost" title="Paste from clipboard">Paste</button>
+        <button type="submit" id="fetchBtn" class="btn primary">Find video</button>
+      </form>
+      <p id="linkError" class="error" hidden></p>
+      <ul id="searchResults" class="results" hidden></ul>
+    </section>
+
+    <section class="card" id="optionsCard" hidden>
+      <div class="preview">
+        <div class="thumb"><img id="pvThumb" alt=""><span id="pvDuration" class="badge"></span><span id="pvLive" class="live-badge" hidden>LIVE</span></div>
+        <div class="pv-text">
+          <h2 id="pvTitle"></h2>
+          <p id="pvMeta" class="muted"></p>
+          <ul id="pvLinks" class="pv-links" hidden></ul>
+          <div id="playlistChoice" class="seg small" hidden>
+            <button type="button" data-pl="0" class="on">Just this video</button>
+            <button type="button" data-pl="1" id="plAllBtn">Whole playlist</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="liveRow" class="note" hidden>
+        <label class="inline"><input type="checkbox" id="optLiveStart"> <span id="liveLabel">Record from the beginning of the stream</span></label>
+        <small class="muted" id="liveHint">Recording keeps going until the stream ends. Cancel throws the recording away.</small>
+      </div>
+
+      <div id="itemsRow" class="note" hidden>
+        <label class="inline-field">
+          <span><b>Which items?</b> <small class="muted">For example <code>1-10</code> or <code>1,4,7-9</code>. Leave empty for all.</small></span>
+          <input id="optItems" placeholder="all" aria-label="Playlist items">
+        </label>
+      </div>
+
+      <div class="step">
+        <h3>What do you want?</h3>
+        <div class="choice" id="modeChoice">
+          <button type="button" data-mode="video" class="on">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="5" width="15" height="14" rx="2"/><path d="M17 10l5-3v10l-5-3z"/></svg>
+            <b>Video</b><small>With picture and sound</small>
+          </button>
+          <button type="button" data-mode="audio">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+            <b>Audio only</b><small>Music, podcasts, MP3</small>
+          </button>
+        </div>
+      </div>
+
+      <div class="step" id="qualityStep">
+        <h3>Quality</h3>
+        <div class="chips" id="qualityChips"></div>
+        <h3 class="sub-h">File type</h3>
+        <div class="chips" id="containerChips">
+          <button type="button" data-ct="mp4" class="on">MP4 <small>plays everywhere</small></button>
+          <button type="button" data-ct="mkv">MKV <small>original quality, for VLC</small></button>
+        </div>
+      </div>
+
+      <div class="step" id="audioStep" hidden>
+        <h3>File type</h3>
+        <div class="chips" id="audioChips">
+          <button type="button" data-fmt="mp3" class="on">MP3 <small>plays everywhere</small></button>
+          <button type="button" data-fmt="m4a">M4A <small>smaller, iPhone</small></button>
+          <button type="button" data-fmt="flac">FLAC <small>lossless</small></button>
+          <button type="button" data-fmt="wav">WAV <small>for editing</small></button>
+        </div>
+        <div id="bitrateBox">
+          <h3 class="sub-h">Sound quality</h3>
+          <div class="chips" id="bitrateChips">
+            <button type="button" data-br="0" class="on">Best</button>
+            <button type="button" data-br="320K">320 kbps</button>
+            <button type="button" data-br="256K">256 kbps</button>
+            <button type="button" data-br="192K">192 kbps</button>
+            <button type="button" data-br="128K">128 kbps <small>smallest</small></button>
+          </div>
+        </div>
+      </div>
+
+      <details class="more">
+        <summary>More options<span id="moreSummary" class="more-on"></span></summary>
+        <div class="more-grid">
+          <div class="row" id="subsRow">
+            <input type="checkbox" id="optSubs" aria-label="Add subtitles">
+            <label for="optSubs"><b>Add subtitles</b><small>Uses auto-generated ones if there are no others</small></label>
+            <span class="row-controls">
+              <select id="optSubLang" aria-label="Subtitle language"></select>
+              <select id="optSubMode" aria-label="How to save subtitles">
+                <option value="embed">Built into the video</option>
+                <option value="file">Separate .srt file</option>
+                <option value="both">Both</option>
+              </select>
+            </span>
+          </div>
+          <div class="row">
+            <span><b>Only part of it</b><small>Leave empty for the whole thing. Example: 1:30 to 2:45</small></span>
+            <span class="clip"><input id="optStart" placeholder="start" aria-label="Start time"> to <input id="optEnd" placeholder="end" aria-label="End time"></span>
+          </div>
+          <label class="row">
+            <input type="checkbox" id="optSponsor">
+            <span><b>Skip sponsor segments</b><small>YouTube only. Cuts out ads read by the creator</small></span>
+          </label>
+          <div class="row">
+            <span><b>Extra yt-dlp options</b><small>For experts: anything from the
+              <a href="https://github.com/yt-dlp/yt-dlp#usage-and-options" target="_blank" rel="noopener">yt-dlp option list</a>,
+              e.g. <code>--write-thumbnail --split-chapters</code></small></span>
+            <input id="optExtra" class="extra" placeholder="--option value" spellcheck="false" aria-label="Extra yt-dlp options">
+          </div>
+        </div>
+      </details>
+
+      <div class="save-row">
+        <div>
+          <small class="muted">Saving to</small>
+          <div id="saveDir" class="path"></div>
+        </div>
+        <button type="button" class="btn ghost" id="changeDirBtn">Change</button>
+      </div>
+
+      <button type="button" id="downloadBtn" class="btn primary big">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0l-5-5m5 5l5-5M4 21h16"/></svg>
+        <span id="downloadLabel">Download</span>
+      </button>
+    </section>
+
+    <section id="downloadsSection" hidden>
+      <div class="section-head">
+        <h2>Your downloads</h2>
+        <div>
+          <button type="button" class="btn ghost small" id="openFolderBtn">Open folder</button>
+          <button type="button" class="btn ghost small" id="clearBtn">Clear finished</button>
+        </div>
+      </div>
+      <ul id="jobList" class="jobs"></ul>
+    </section>
+  </main>
+
+  <footer>
+    <span id="versionText"></span>
+    <button type="button" class="link" id="updateBtn">Update downloader</button>
+    <span class="muted">Only download content you have the right to.</span>
+  </footer>
+
+  <dialog id="settingsDialog">
+    <form method="dialog" id="settingsForm">
+      <h3 class="dlg-title">Settings</h3>
+
+      <label class="field">
+        <span><b>Save downloads to</b></span>
+        <span class="field-row">
+          <input id="setDir" aria-label="Download folder">
+          <button type="button" class="btn ghost small" id="setDirBrowse">Browse…</button>
+        </span>
+      </label>
+
+      <label class="field">
+        <span><b>Use my browser login</b><small>For private, members-only or age-restricted videos, and when a site asks you to sign in.
+          You must be logged in to the site in that browser.</small></span>
+        <select id="setBrowser">
+          <option value="">Don't use</option>
+          <option value="chrome">Chrome</option>
+          <option value="edge">Edge</option>
+          <option value="firefox">Firefox</option>
+          <option value="brave">Brave</option>
+          <option value="opera">Opera</option>
+          <option value="vivaldi">Vivaldi</option>
+          <option value="safari">Safari</option>
+        </select>
+      </label>
+
+      <label class="field check">
+        <input type="checkbox" id="setArchive">
+        <span><b>Skip videos I already downloaded</b><small>Handy for playlists and channels you download again later</small></span>
+      </label>
+
+      <div class="field-pair">
+        <label class="field">
+          <span><b>Speed limit</b></span>
+          <select id="setRate">
+            <option value="">No limit</option>
+            <option value="500K">500 KB/s</option>
+            <option value="1M">1 MB/s</option>
+            <option value="2M">2 MB/s</option>
+            <option value="5M">5 MB/s</option>
+            <option value="10M">10 MB/s</option>
+          </select>
+        </label>
+        <label class="field">
+          <span><b>Downloads at the same time</b></span>
+          <select id="setParallel">
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+          </select>
+        </label>
+      </div>
+
+      <label class="field">
+        <span><b>Proxy</b><small>Leave empty unless you know you need one. Example: <code>socks5://127.0.0.1:1080</code></small></span>
+        <input id="setProxy" placeholder="none" spellcheck="false">
+      </label>
+
+      <p id="settingsError" class="error" hidden></p>
+      <div class="dlg-actions">
+        <button value="cancel" class="btn ghost" formnovalidate>Cancel</button>
+        <button value="ok" id="settingsSave" class="btn primary">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" hidden></div>
+  <script src="app.js"></script>
+</body>
+</html>
