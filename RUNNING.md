@@ -32,11 +32,11 @@ You do **not** need Python or yt-dlp. The app downloads yt-dlp by itself on firs
 Open a terminal (Windows: **PowerShell**, Mac: **Terminal**) and run:
 
 ```sh
-git clone https://github.com/Youssefhikal93/yt-downloader.git
+git clone -b yt-downloader-app --single-branch https://github.com/Youssefhikal93/yt-dlp.git yt-downloader
 cd yt-downloader
 ```
 
-The repository is private, so you need to be signed in to GitHub (`gh auth login`, or Git asks for your login the first time).
+The app lives on the `yt-downloader-app` branch of the yt-dlp fork. Its other branches hold yt-dlp's own source code, which this app doesn't need.
 
 ## 3. Start the app
 
