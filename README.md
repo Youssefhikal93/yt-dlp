@@ -30,9 +30,12 @@ the page shows an **Install FFmpeg** button (Windows). FFmpeg is needed for MP3s
 | Only part of a video (e.g. 1:30 to 2:45) | `--download-sections` |
 | Skip sponsor segments (YouTube) | `--sponsorblock-remove` |
 | Record live streams, from the beginning or when they start | `--live-from-start`, `--wait-for-video` |
+| Choose the file name before downloading (**Save as**) | renamed after download |
+| TV4 Play links, including free episodes that need an account ([how](RUNNING.md#tv4-play)) | plugin in `plugins/`, `--plugin-dirs` |
 | Faster downloads | `-N 4` |
 | Extra yt-dlp options box for anything else | passed straight to yt-dlp |
 | **Settings:** use my browser login (private / age-restricted / sign-in) | `--cookies-from-browser` |
+| **Settings:** TV4 Play login | `--extractor-args tv4playapp:token=…` |
 | **Settings:** skip videos I already downloaded | `--download-archive` |
 | **Settings:** speed limit, proxy, downloads at the same time (1–4) | `-r`, `--proxy` |
 | Progress, speed, time left, cancel, retry; download list kept after restart | `--progress-template`, `--newline` |

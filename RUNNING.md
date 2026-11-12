@@ -205,6 +205,50 @@ git push --tags
 
 ---
 
+# TV4 Play
+
+TV4 Play links (`https://www.tv4play.se/video/...`) work in the app, even for free episodes that need an
+account. Videos TV4 protects with DRM can't be downloaded.
+
+## Option A: save your TV4 Play login once (recommended)
+
+Then you just paste normal TV4 Play links.
+
+1. In Chrome, open [tv4play.se](https://www.tv4play.se) and log in.
+2. Press **F12** and open the **Console** tab.
+3. Paste this line and press **Enter**:
+   ```js
+   document.cookie.match(/tv4-refresh-token=([^;]+)/)[1]
+   ```
+4. Copy the long text it prints (it starts with `eyJ`).
+5. In the app, open **Settings** (gear icon), paste it into **TV4 Play login**, set **Use my browser login** to
+   **Don't use**, and click **Save**.
+
+The login lasts about a year. If you log out of TV4 Play or change your password, repeat these steps.
+Keep this text private: it is your TV4 login.
+
+## Option B: copy the video link (no login saved)
+
+This gives you a direct video link you can paste into the app.
+
+1. In Chrome, open the episode on tv4play.se (logged in) and press **F12**.
+2. Open the **Network** tab and tick **Preserve log**.
+3. In the filter box, type `playback2`.
+4. Press **Ctrl+R** to reload the page, then press play on the video.
+5. Click the row that starts with the video's id (for example `6f623894d2a4feff9cb5?service=tv4play...`) and
+   has status **200**. Ignore the row with status 204.
+6. Open the **Response** tab and find `manifestUrl` under `playbackItem`. It looks like this:
+   ```
+   "manifestUrl": "https://vod.streaming.a2d.tv/51b96033-.../46add620-..._21094823.ism/.m3u8?start_index=3",
+   ```
+7. Copy the address between the quotes, from `https://` to `.m3u8`, and paste it into the app. You can leave
+   out `?start_index=3`.
+
+With this link the file is named `.m3u8` by default, so type a proper name in **Save as**. If you tick
+**Add subtitles**, choose **Swedish ✓**.
+
+---
+
 # Troubleshooting
 
 | Problem                                                                              | Fix                                                                                                                                              |
@@ -214,5 +258,8 @@ git push --tags
 | Browser didn't open                                                                  | Open `http://localhost:8765` yourself. If that port was busy, the app window shows the port it used instead.                                   |
 | "FFmpeg is missing"                                                                  | Windows: click **Install FFmpeg** on the page. Mac: install [Homebrew](https://brew.sh), run `brew install ffmpeg`, then restart the app. |
 | "Sign in to confirm you're not a bot" / age-restricted / "needs you to be logged in" | Open **Settings** (gear icon, top right) and set **Use my browser login** to a browser where you're signed in to the site.           |
+| TV4 Play: "needs you to be logged in" or "did not accept your login"                 | Save your TV4 Play login in **Settings**, see [TV4 Play](#tv4-play).                                                                             |
+| "Couldn't read the browser login" with Chrome                                        | Chrome on Windows blocks other apps from reading its logins. Close Chrome completely, use Firefox, or for TV4 Play see [TV4 Play](#tv4-play).    |
+| "The process cannot access the file because it is being used by another process"     | The same video was downloading twice. Cancel the extra one and click **Try again**.                                                               |
 | Downloads suddenly fail                                                              | Click **Update downloader** at the bottom of the page.                                                                                     |
 | Mac: "Operation not permitted" when saving to Downloads                              | **System Settings** → **Privacy & Security** → **Files and Folders** → allow Terminal to access the Downloads folder.       |
