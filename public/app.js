@@ -254,6 +254,7 @@ function renderOptions() {
     setSeg($('playlistChoice'), 'pl', '0');
   }
   $('optItems').value = '';
+  $('optName').value = batch ? '' : (info.title || '').replace(/[<>:"/\\|?*\x00-\x1f]+/g, ' ').replace(/\s+/g, ' ').trim();
   updateItemsRow();
 
   // A clip range belongs to one video, so don't carry it over to the next one.
@@ -293,7 +294,8 @@ function renderOptions() {
     try { name = names ? `${names.of(l)}` : l; } catch {}
     return el('option', { value: l }, name + (available.includes(l) ? ' ✓' : ''));
   }));
-  $('optSubLang').value = available.find(l => l.startsWith('en')) || 'en';
+  // Prefer English, else whatever the video actually has (e.g. only Swedish on TV4 Play).
+  $('optSubLang').value = available.find(l => l.startsWith('en')) || available[0] || 'en';
 
   $('downloadLabel').textContent = batch ? `Download all ${batch.length}` : info.live ? 'Record' : 'Download';
   $('optionsCard').hidden = false;
@@ -315,6 +317,8 @@ function updateItemsRow() {
   const count = info.playlist ? info.playlist.count : info.count;
   $('itemsRow').hidden = !state.playlist;
   $('optItems').placeholder = count ? `all ${count}` : 'all';
+  // Renaming only makes sense for a single file.
+  $('nameRow').hidden = state.playlist || !!state.batch;
 }
 
 function setMode(mode) {
@@ -373,6 +377,7 @@ async function startDownload() {
         count: plInfo ? plInfo.count : info.count,
         playlist: state.playlist,
         items: state.playlist ? $('optItems').value : '',
+        fileName: state.playlist ? '' : $('optName').value,
       });
       toast('Added to your downloads');
     }
@@ -498,6 +503,10 @@ function openSettings() {
   if ($('setRate').value !== (s.rateLimit || '')) $('setRate').append(el('option', { value: s.rateLimit, selected: true }, s.rateLimit));
   $('setParallel').value = String(s.maxParallel || 2);
   $('setProxy').value = s.proxy || '';
+  $('setTv4Token').value = '';
+  $('setTv4Token').placeholder = s.hasTv4Token ? 'saved (paste a new one to replace it)' : 'not set';
+  $('setTv4Clear').hidden = !s.hasTv4Token;
+  state.clearTv4Token = false;
   $('settingsError').hidden = true;
   $('settingsDialog').showModal();
 }
@@ -510,6 +519,13 @@ $('setDirBrowse').addEventListener('click', async e => {
   else toast('Type the folder path in the box instead.');
 });
 
+$('setTv4Clear').addEventListener('click', () => {
+  state.clearTv4Token = true;
+  $('setTv4Token').value = '';
+  $('setTv4Token').placeholder = 'will be removed when you save';
+  $('setTv4Clear').hidden = true;
+});
+
 $('settingsSave').addEventListener('click', async e => {
   e.preventDefault();
   try {
@@ -520,6 +536,8 @@ $('settingsSave').addEventListener('click', async e => {
       rateLimit: $('setRate').value,
       maxParallel: Number($('setParallel').value),
       proxy: $('setProxy').value,
+      // Empty box keeps the saved login; only a new value or "Remove" changes it.
+      ...($('setTv4Token').value.trim() ? { tv4Token: $('setTv4Token').value } : state.clearTv4Token ? { tv4Token: '' } : {}),
     });
     renderStatus();
     $('settingsDialog').close();

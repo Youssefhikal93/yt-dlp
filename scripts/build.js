@@ -23,6 +23,9 @@ async function main() {
 
   const assets = {};
   for (const name of fs.readdirSync(PUBLIC_DIR)) assets[name] = path.join(PUBLIC_DIR, name);
+  // yt-dlp plugins; server.js unpacks them into the app-data folder on start.
+  const PLUGIN_SRC = path.join(ROOT, 'plugins', 'yt-downloader', 'yt_dlp_plugins', 'extractor');
+  for (const name of fs.readdirSync(PLUGIN_SRC).filter(n => n.endsWith('.py'))) assets['plugins/' + name] = path.join(PLUGIN_SRC, name);
   fs.writeFileSync(CONFIG, JSON.stringify({
     main: path.join(ROOT, 'server.js'),
     output: BLOB,

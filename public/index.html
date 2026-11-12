@@ -56,6 +56,13 @@
         <small class="muted" id="liveHint">Recording keeps going until the stream ends. Cancel throws the recording away.</small>
       </div>
 
+      <div id="nameRow" class="note" hidden>
+        <label class="name-field">
+          <span><b>Save as</b> <small class="muted">Change the file name if you like. The file type is added for you.</small></span>
+          <input id="optName" spellcheck="false" maxlength="150" aria-label="File name">
+        </label>
+      </div>
+
       <div id="itemsRow" class="note" hidden>
         <label class="inline-field">
           <span><b>Which items?</b> <small class="muted">For example <code>1-10</code> or <code>1,4,7-9</code>. Leave empty for all.</small></span>
@@ -196,6 +203,16 @@
           <option value="vivaldi">Vivaldi</option>
           <option value="safari">Safari</option>
         </select>
+      </label>
+
+      <label class="field">
+        <span><b>TV4 Play login</b><small>Only needed if the browser login doesn't work (Chrome often blocks it). Log in at
+          tv4play.se, press F12, open <b>Console</b>, paste
+          <code>document.cookie.match(/tv4-refresh-token=([^;]+)/)[1]</code> and press Enter. Copy the result (starts with eyJ) here.</small></span>
+        <span class="field-row">
+          <input id="setTv4Token" type="password" placeholder="not set" spellcheck="false" autocomplete="off">
+          <button type="button" class="btn ghost small" id="setTv4Clear" hidden>Remove</button>
+        </span>
       </label>
 
       <label class="field check">

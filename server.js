@@ -25,6 +25,10 @@ const DATA_DIR = sea ? appDataDir() : ROOT;
 const PUBLIC_DIR = path.join(ROOT, 'public');
 const BIN_DIR = path.join(DATA_DIR, 'bin');
 const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
+// Our own yt-dlp extractors (e.g. current TV4 Play links). yt-dlp expects <dir>/<package>/yt_dlp_plugins/extractor/.
+const PLUGIN_DIR = path.join(DATA_DIR, 'plugins');
+const PLUGIN_FILES = ['tv4play_app.py'];
+const PLUGIN_SUBDIR = path.join('yt-downloader', 'yt_dlp_plugins', 'extractor');
 const EXE = IS_WIN ? '.exe' : '';
 const YTDLP = path.join(BIN_DIR, 'yt-dlp' + EXE);
 const YTDLP_URL = 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/' +
@@ -182,7 +186,10 @@ function findFiles(dir, names, found = {}) {
 function friendlyError(stderr) {
   const lines = String(stderr).split(/\r?\n/).filter(l => l.startsWith('ERROR:'));
   const raw = (lines[0] || String(stderr).trim().split(/\r?\n/).pop() || 'Something went wrong.');
+  // Our plugins already write messages meant for the user.
+  if (/^ERROR: \[tv4play:app\]/.test(raw)) return raw.replace(/^ERROR:\s*\[[^\]]+\]\s*([\w-]+:\s*)?/, '');
   const checks = [
+    [/DRM protected/i, "This video is copy-protected (DRM), so it can't be downloaded."],
     [/Unsupported URL/i, "This website isn't supported, or the link isn't a video page."],
     [/is not a valid URL/i, "That doesn't look like a valid link."],
     [/Private video|members[- ]only|This video is private/i, 'This video is private or for members only. Open Settings (gear icon) and set "Use my browser login".'],
@@ -195,7 +202,7 @@ function friendlyError(stderr) {
     [/HTTP Error 429|Too Many Requests/i, 'The site is limiting requests. Wait a few minutes and try again.'],
     [/getaddrinfo|Failed to resolve|timed out|Connection refused|Network is unreachable/i, "Couldn't connect. Check your internet connection."],
     [/ffmpeg|ffprobe/i, 'This option needs FFmpeg. Click "Install FFmpeg" at the top of the page.'],
-    [/could not (copy|find).*cookie|cookies database/i, "Couldn't read the browser login. Close that browser completely and try again, or choose another browser."],
+    [/could not (copy|find).*cookie|cookies database|decrypt with DPAPI|app.bound encryption/i, "Couldn't read the browser login. Close that browser completely and try again, or choose another browser."],
   ];
   for (const [re, msg] of checks) if (re.test(raw)) return msg;
   return raw.replace(/^ERROR:\s*(\[[^\]]+\]\s*)?([\w-]+:\s*)?/, '');
@@ -204,9 +211,10 @@ function friendlyError(stderr) {
 // ---------- info ----------
 // Options from the Settings panel that apply to every yt-dlp call, lookups included.
 function commonArgs() {
-  const a = [];
+  const a = ['--plugin-dirs', PLUGIN_DIR];
   if (BROWSERS.includes(settings.browser)) a.push('--cookies-from-browser', settings.browser);
   if (settings.proxy) a.push('--proxy', settings.proxy);
+  if (settings.tv4Token) a.push('--extractor-args', `tv4playapp:token=${settings.tv4Token}`);
   return a;
 }
 
@@ -296,6 +304,8 @@ function buildArgs(o) {
   const a = [
     '--ignore-config', '--newline', '--progress', '--color', 'never', '--no-simulate', '--no-mtime',
     '-N', '4', // download 4 pieces at a time: much faster on YouTube and other streaming sites
+    // Antivirus and Windows Search briefly lock freshly written pieces; wait for them instead of failing.
+    '--file-access-retries', '10',
     '--progress-template', 'download:[[P]]%(progress.downloaded_bytes)s|%(progress.total_bytes)s|%(progress.total_bytes_estimate)s|%(progress.speed)s|%(progress.eta)s|%(info.vcodec)s',
     '--progress-template', 'postprocess:[[PP]]%(progress.postprocessor)s',
     '--print', 'before_dl:[[ITEM]]%(playlist_index|)s|%(n_entries|)s|%(id|)s|%(thumbnail|)s|%(title)s',
@@ -505,6 +515,7 @@ function finishJob(job, code, errMsg) {
   else if (code === 0) {
     job.status = 'done';
     job.percent = 100;
+    if (job.opts && job.opts.fileName && job.files.length === 1) renameOutput(job, job.opts.fileName);
     if (!job.files.length) job.warning = settings.useArchive ? 'You downloaded this before, so it was skipped.' : 'Nothing new to download.';
     else if (job.ffmpegNote) job.warning = job.ffmpegNote;
   }
@@ -514,6 +525,37 @@ function finishJob(job, code, errMsg) {
   broadcast(job, true);
   saveHistory();
   pumpQueue();
+}
+
+// A name chosen in "Save as", made safe for Windows, macOS and Linux file systems.
+function cleanFileName(name) {
+  let n = String(name || '').replace(/[<>:"/\\|?*\x00-\x1f]+/g, ' ').replace(/\s+/g, ' ').trim();
+  n = n.slice(0, 150).replace(/[. ]+$/, '');
+  if (/^(con|prn|aux|nul|com\d|lpt\d)$/i.test(n)) n = `_${n}`;
+  return n;
+}
+
+// yt-dlp downloads as "Title [id].ext" (the [id] lets cancel/cleanup find the files), and then we give
+// the finished file, plus subtitle files saved next to it ("Title [id].sv.srt"), the name the user chose.
+function renameOutput(job, name) {
+  const file = job.files[0];
+  const dir = path.dirname(file);
+  const ext = path.extname(file);
+  const stem = path.basename(file, ext);
+  let target = name;
+  for (let i = 2; fs.existsSync(path.join(dir, target + ext)) && i < 100; i++) target = `${name} (${i})`;
+  try {
+    for (const other of fs.readdirSync(dir)) {
+      if (other !== path.basename(file) && other.startsWith(stem + '.')) {
+        fs.renameSync(path.join(dir, other), path.join(dir, target + other.slice(stem.length)));
+      }
+    }
+    const dest = path.join(dir, target + ext);
+    fs.renameSync(file, dest);
+    job.files[0] = dest;
+  } catch (e) {
+    job.warning = `Downloaded, but couldn't rename the file: ${e.message}`;
+  }
 }
 
 function recordingSize(dir, marker, since) {
@@ -559,14 +601,26 @@ function ffmpegNote(o) {
   return 'FFmpeg is missing, so the video was saved in a lower quality single file.';
 }
 
+// Two downloads of the same link would write the same temporary files, and Windows then fails with
+// "file is being used by another process" (WinError 32).
+function assertNotDownloading(url, exceptId) {
+  for (const j of jobs.values()) {
+    if (j.id !== exceptId && j.url === url && ['queued', 'running'].includes(j.status)) {
+      throw new Error('This link is already downloading. Wait for it to finish or cancel it first.');
+    }
+  }
+}
+
 function createJob(o) {
   o.url = String(o.url || '').trim();
   if (!/^https?:\/\//i.test(o.url)) throw new Error("That doesn't look like a valid link.");
+  assertNotDownloading(o.url);
+  o.fileName = o.playlist ? '' : cleanFileName(o.fileName);
   const videoLabel = (Number(o.quality) ? `${o.quality}p` : 'Best') + (o.container === 'mkv' ? ' MKV' : '');
   const job = {
     id: crypto.randomBytes(6).toString('hex'),
     url: o.url,
-    title: o.title || o.url,
+    title: o.fileName || o.title || o.url,
     thumbnail: o.thumbnail || null,
     mode: o.mode === 'audio' ? 'audio' : 'video',
     label: o.mode === 'audio' ? String(o.audioFormat || 'mp3').toUpperCase() : videoLabel,
@@ -594,7 +648,12 @@ function cancelJob(id) {
 
 // ---------- OS helpers ----------
 function openInExplorer(target, select) {
-  if (IS_WIN) spawn('explorer', select ? [`/select,${target}`] : [target], { windowsHide: true, detached: true }).unref();
+  // Explorer parses its own command line: Node's automatic quoting ("/select,C:\a b") breaks it, so quote
+  // only the path and pass the line through untouched.
+  if (IS_WIN) {
+    const p = path.resolve(target);
+    spawn('explorer.exe', [select ? `/select,"${p}"` : `"${p}"`], { windowsVerbatimArguments: true, detached: true, stdio: 'ignore' }).unref();
+  }
   else if (IS_MAC) spawn('open', select ? ['-R', target] : [target], { detached: true }).unref();
   else spawn('xdg-open', [select ? path.dirname(target) : target], { detached: true }).unref();
 }
@@ -654,7 +713,9 @@ function isTrusted(req) {
 }
 
 function statusPayload() {
-  return { ...setup, downloadDir: settings.downloadDir, settings, platform: process.platform };
+  // Never send the TV4 login back to the page, only whether one is saved.
+  const { tv4Token, ...shown } = settings;
+  return { ...setup, downloadDir: settings.downloadDir, settings: { ...shown, hasTv4Token: !!tv4Token }, platform: process.platform };
 }
 
 const routes = {
@@ -673,6 +734,7 @@ const routes = {
   'POST /api/retry': async b => {
     const old = jobs.get(b.id);
     if (!old || !['error', 'cancelled'].includes(old.status)) throw new Error('Nothing to retry.');
+    assertNotDownloading(old.url, old.id);
     // Rebuild the options so a retry picks up changed settings (folder, browser login, …).
     const args = old.opts ? buildArgs(old.opts) : old.args;
     if (!args) throw new Error('This download is too old to retry. Paste the link again.');
@@ -732,6 +794,12 @@ const routes = {
       const p = String(b.proxy || '').trim();
       if (p && !/^(https?|socks[45]h?):\/\/\S+$/i.test(p)) throw new Error('Proxy should look like http://host:port or socks5://host:port');
       next.proxy = p;
+    }
+    if ('tv4Token' in b) {
+      // Accept the bare value, or the whole "tv4-refresh-token=…" cookie, with stray quotes or spaces.
+      const t = String(b.tv4Token || '').trim().replace(/^tv4-refresh-token=/, '').replace(/^["']|["']$/g, '');
+      if (t && !/^eyJ[\w-]+\.[\w-]+\.[\w-]+$/.test(t)) throw new Error('That TV4 Play login doesn\'t look right. It should be one long line starting with eyJ.');
+      next.tv4Token = t;
     }
     if ('maxParallel' in b) next.maxParallel = Math.min(4, Math.max(1, Number(b.maxParallel) || 2));
     settings = next;
@@ -805,6 +873,17 @@ server.on('listening', () => {
   openBrowser(url);
 });
 
+// The packaged app carries the plugins as embedded assets; unpack them where yt-dlp can load them.
+function installPlugins() {
+  if (!sea) return; // running from source: plugins/ is already in place
+  const dir = path.join(PLUGIN_DIR, PLUGIN_SUBDIR);
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+    for (const name of PLUGIN_FILES) fs.writeFileSync(path.join(dir, name), Buffer.from(sea.getAsset('plugins/' + name)));
+  } catch (e) { console.error('Could not install yt-dlp plugins:', e.message); }
+}
+
+installPlugins();
 loadHistory();
 server.listen(port, '127.0.0.1');
 detectFfmpeg();
